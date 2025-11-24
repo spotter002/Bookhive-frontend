@@ -1,14 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import useSocket from '../hooks/useSocket';
 import api from '../utils/api';
 
 const Messages = () => {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
+  const socket = useSocket(token);
   const [chats, setChats] = useState([]);
   const [selectedChat, setSelectedChat] = useState(null);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
+  const [typingUsers, setTypingUsers] = useState([]);
+  const [typingTimeout, setTypingTimeout] = useState(null);
 
   useEffect(() => {
     if (user) {
@@ -19,8 +23,47 @@ const Messages = () => {
   useEffect(() => {
     if (selectedChat) {
       fetchMessages(selectedChat._id);
+      if (socket?.current) {
+        socket.current.emit('join_chat', selectedChat._id);
+        socket.current.emit('mark_read', { chatId: selectedChat._id });
+      }
     }
-  }, [selectedChat]);
+  }, [selectedChat, socket]);
+
+  useEffect(() => {
+    if (!socket?.current) return;
+    
+    const s = socket.current;
+    
+    s.on('receive_message', (message) => {
+      setMessages(prev => [...prev, message]);
+      setChats(prev => prev.map(chat => 
+        chat._id === message.chatId 
+          ? { ...chat, updatedAt: new Date() }
+          : chat
+      ));
+    });
+
+    s.on('messages_read', ({ chatId }) => {
+      if (selectedChat?._id === chatId) {
+        setMessages(prev => prev.map(m => ({ ...m, read: true })));
+      }
+    });
+
+    s.on('typing_status', ({ userId, typing }) => {
+      setTypingUsers(prev => 
+        typing 
+          ? [...prev.filter(id => id !== userId), userId]
+          : prev.filter(id => id !== userId)
+      );
+    });
+
+    return () => {
+      s.off('receive_message');
+      s.off('messages_read');
+      s.off('typing_status');
+    };
+  }, [socket, selectedChat]);
 
   const fetchChats = async () => {
     try {
@@ -44,16 +87,34 @@ const Messages = () => {
 
   const sendMessage = async (e) => {
     e.preventDefault();
-    if (!newMessage.trim() || !selectedChat) return;
+    if (!newMessage.trim() || !selectedChat || !socket?.current) return;
 
-    try {
-      const response = await api.post(`/api/chats/${selectedChat._id}/messages`, {
-        content: newMessage
-      });
-      setMessages([...messages, response.data]);
-      setNewMessage('');
-    } catch (error) {
-      console.error('Error sending message:', error);
+    socket.current.emit('send_message', {
+      chatId: selectedChat._id,
+      content: newMessage
+    });
+    
+    setNewMessage('');
+    handleStopTyping();
+  };
+
+  const handleTyping = () => {
+    if (!socket?.current || !selectedChat) return;
+    
+    socket.current.emit('typing', { chatId: selectedChat._id });
+    
+    if (typingTimeout) clearTimeout(typingTimeout);
+    setTypingTimeout(setTimeout(() => {
+      handleStopTyping();
+    }, 1000));
+  };
+
+  const handleStopTyping = () => {
+    if (!socket?.current || !selectedChat) return;
+    socket.current.emit('stop_typing', { chatId: selectedChat._id });
+    if (typingTimeout) {
+      clearTimeout(typingTimeout);
+      setTypingTimeout(null);
     }
   };
 
@@ -102,7 +163,7 @@ const Messages = () => {
                       borderBottom: '1px solid #eee',
                       cursor: 'pointer',
                       backgroundColor: selectedChat?._id === chat._id ? '#e3f2fd' : 'white',
-                      ':hover': { backgroundColor: '#f5f5f5' }
+                      position: 'relative'
                     }}
                   >
                     <div style={{ fontWeight: 'bold', marginBottom: '0.25rem' }}>
@@ -111,6 +172,25 @@ const Messages = () => {
                     <div style={{ fontSize: '0.9rem', color: '#666' }}>
                       with {otherUser?.name}
                     </div>
+                    {chat.unreadCount > 0 && (
+                      <span style={{
+                        position: 'absolute',
+                        top: '0.5rem',
+                        right: '0.5rem',
+                        backgroundColor: 'var(--primary-yellow)',
+                        color: 'var(--jet-black)',
+                        borderRadius: '50%',
+                        width: '20px',
+                        height: '20px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '0.7rem',
+                        fontWeight: 'bold'
+                      }}>
+                        {chat.unreadCount}
+                      </span>
+                    )}
                   </div>
                 );
               })
@@ -171,13 +251,25 @@ const Messages = () => {
                       <div style={{ 
                         fontSize: '0.7rem', 
                         marginTop: '0.25rem',
-                        opacity: 0.7
+                        opacity: 0.7,
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center'
                       }}>
-                        {new Date(message.timestamp).toLocaleTimeString()}
+                        <span>{new Date(message.timestamp).toLocaleTimeString()}</span>
+                        {message.senderId._id === user.id && (
+                          <span>{message.read ? '✓✓' : '✓'}</span>
+                        )}
                       </div>
                     </div>
                   </div>
                 ))}
+                
+                {typingUsers.length > 0 && (
+                  <div style={{ padding: '0.5rem', fontStyle: 'italic', color: '#666' }}>
+                    {getOtherParticipant(selectedChat)?.name} is typing...
+                  </div>
+                )}
               </div>
 
               {/* Message Input */}
@@ -191,7 +283,10 @@ const Messages = () => {
                 <input
                   type="text"
                   value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
+                  onChange={(e) => {
+                    setNewMessage(e.target.value);
+                    handleTyping();
+                  }}
                   placeholder="Type a message..."
                   style={{
                     flex: 1,
