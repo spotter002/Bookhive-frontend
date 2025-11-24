@@ -28,7 +28,7 @@ const Navbar = () => {
             <>
               <Link to="/add-book" className="navbar-link">Add Book</Link>
               <Link to="/cart" className="navbar-link">
-                Cart ({cart.items.length})
+                🛒 Cart ({cart.items.length})
               </Link>
               <Link to="/profile" className="navbar-link">Profile</Link>
               <button onClick={handleLogout} className="btn-secondary">Logout</button>

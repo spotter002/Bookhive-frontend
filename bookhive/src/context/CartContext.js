@@ -18,7 +18,11 @@ export const CartProvider = ({ children }) => {
       const response = await api.get('/api/cart');
       setCart(response.data);
     } catch (error) {
-      console.error('Error fetching cart:', error);
+      if (error.response?.status === 404) {
+        setCart({ items: [], totalAmount: 0 });
+      } else {
+        console.error('Error fetching cart:', error);
+      }
     } finally {
       setLoading(false);
     }
@@ -30,6 +34,19 @@ export const CartProvider = ({ children }) => {
       setCart(response.data);
       return true;
     } catch (error) {
+      if (error.response?.status === 404) {
+        // Fallback: store in localStorage if backend not available
+        const localCart = JSON.parse(localStorage.getItem('cart') || '{"items":[], "totalAmount":0}');
+        const existingItem = localCart.items.find(item => item.bookId === bookId);
+        if (existingItem) {
+          existingItem.quantity += quantity;
+        } else {
+          localCart.items.push({ bookId, quantity });
+        }
+        localStorage.setItem('cart', JSON.stringify(localCart));
+        setCart(localCart);
+        return true;
+      }
       console.error('Error adding to cart:', error);
       return false;
     }
