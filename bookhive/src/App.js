@@ -10,6 +10,7 @@ import BookDetails from './pages/BookDetails';
 import AddBook from './pages/AddBook';
 import Profile from './pages/Profile';
 import Cart from './pages/Cart';
+import Messages from './pages/Messages';
 import './App.css';
 
 function App() {
@@ -27,6 +28,7 @@ function App() {
               <Route path="/add-book" element={<AddBook />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/cart" element={<Cart />} />
+              <Route path="/messages" element={<Messages />} />
             </Routes>
           </div>
         </Router>

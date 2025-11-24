@@ -30,6 +30,7 @@ const Navbar = () => {
               <Link to="/cart" className="navbar-link">
                 🛒 Cart ({cart.items.length})
               </Link>
+              <Link to="/messages" className="navbar-link">💬 Messages</Link>
               <Link to="/profile" className="navbar-link">Profile</Link>
               <button onClick={handleLogout} className="btn-secondary">Logout</button>
             </>

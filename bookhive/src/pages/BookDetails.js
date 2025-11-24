@@ -230,18 +230,22 @@ const BookDetails = () => {
                 )}
                 <button 
                   className="btn-secondary"
-                  onClick={() => {
-                    const subject = `Question about "${book.title}" by ${book.author}`;
-                    const body = `Hi,%0D%0A%0D%0AI have a question about your book "${book.title}" by ${book.author}.%0D%0A%0D%0APrice: ${book.swapOnly ? 'Swap Only' : `$${book.price}`}%0D%0ACondition: ${book.condition}%0D%0A%0D%0A[Your question here]%0D%0A%0D%0AThanks!`;
-                    window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=${book.ownerId?.email}&su=${encodeURIComponent(subject)}&body=${body}`, '_blank');
+                  onClick={async () => {
+                    try {
+                      const response = await api.post(`/api/chats/for-book/${book._id}`);
+                      window.location.href = '/messages';
+                    } catch (error) {
+                      console.error('Error creating chat:', error);
+                      alert('Failed to start conversation. Please try again.');
+                    }
                   }}
                   style={{ marginTop: '1rem' }}
                 >
-                  Ask Question
+                  💬 Message Owner
                 </button>
                 <div style={{ fontSize: '0.9rem', color: '#666', marginTop: '0.5rem' }}>
                   <p style={{ margin: '0.25rem 0' }}>
-                    <strong>Ask Question:</strong> Send a message to ask about book details, condition, or availability
+                    <strong>Message Owner:</strong> Start a conversation about this book
                   </p>
                 </div>
               </div>
