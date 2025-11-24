@@ -58,10 +58,31 @@ const Messages = () => {
       );
     });
 
+    s.on('new_chat', ({ userId, chat }) => {
+      if (userId === user.id) {
+        setChats(prev => [chat, ...prev]);
+      }
+    });
+
+    s.on('chat_list_update', ({ userId, chat }) => {
+      if (userId === user.id) {
+        setChats(prev => {
+          const existing = prev.find(c => c._id === chat._id);
+          if (existing) {
+            return prev.map(c => c._id === chat._id ? { ...c, updatedAt: chat.updatedAt } : c)
+              .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+          }
+          return [chat, ...prev];
+        });
+      }
+    });
+
     return () => {
       s.off('receive_message');
       s.off('messages_read');
       s.off('typing_status');
+      s.off('new_chat');
+      s.off('chat_list_update');
     };
   }, [socket, selectedChat]);
 
