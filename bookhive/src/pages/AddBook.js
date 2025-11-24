@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import axios from 'axios';
+import api from '../utils/api';
 
 const AddBook = () => {
   const [formData, setFormData] = useState({
@@ -32,9 +32,8 @@ const AddBook = () => {
     uploadData.append('image', file);
     
     try {
-      const response = await axios.post('http://localhost:5001/api/upload/image', uploadData, {
+      const response = await api.post('/api/upload/image', uploadData, {
         headers: { 
-          Authorization: `Bearer ${token}`,
           'Content-Type': 'multipart/form-data'
         }
       });
@@ -64,9 +63,7 @@ const AddBook = () => {
       bookData.price = bookData.swapOnly ? 0 : (bookData.price === '' ? 0 : parseFloat(bookData.price));
 
       console.log('Final book data being sent:', bookData);
-      await axios.post('http://localhost:5001/api/books', bookData, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await api.post('/api/books', bookData);
       navigate('/');
     } catch (error) {
       console.error('Submission error:', error);

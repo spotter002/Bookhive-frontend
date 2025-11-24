@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import axios from 'axios';
+import api from '../utils/api';
 
 const BookDetails = () => {
   const { id } = useParams();
@@ -17,7 +17,7 @@ const BookDetails = () => {
 
   const fetchBook = async () => {
     try {
-      const response = await axios.get(`http://localhost:5001/api/books/${id}`);
+      const response = await api.get(`/api/books/${id}`);
       setBook(response.data);
       setInventory({
         copiesAvailable: response.data.copiesAvailable || 0,
@@ -33,9 +33,7 @@ const BookDetails = () => {
 
   const updateInventory = async () => {
     try {
-      await axios.patch(`http://localhost:5001/api/books/${id}/inventory`, inventory, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await api.patch(`/api/books/${id}/inventory`, inventory);
       fetchBook();
       alert('Inventory updated successfully!');
     } catch (error) {
@@ -46,9 +44,7 @@ const BookDetails = () => {
   const deleteBook = async () => {
     if (window.confirm('Are you sure you want to delete this book?')) {
       try {
-        await axios.delete(`http://localhost:5001/api/books/${id}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        await api.delete(`/api/books/${id}`);
         alert('Book deleted successfully!');
         window.history.back();
       } catch (error) {

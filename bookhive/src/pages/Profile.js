@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
-import axios from 'axios';
+import api from '../utils/api';
 
 const Profile = () => {
   const { user, token } = useAuth();
@@ -10,38 +10,61 @@ const Profile = () => {
   const [formData, setFormData] = useState({ name: '', bio: '', location: '' });
   const [userBooks, setUserBooks] = useState([]);
   const [sortBy, setSortBy] = useState('newest');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     if (token) {
-      fetchProfile();
-      fetchUserBooks();
+      fetchUserData();
     }
   }, [token]);
 
-  const fetchProfile = async () => {
+  const fetchUserData = async () => {
     try {
-      const response = await axios.get('http://localhost:5001/api/users/profile', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setProfile(response.data);
-      setFormData({
-        name: response.data.name || '',
-        bio: response.data.bio || '',
-        location: response.data.location || ''
-      });
+      setLoading(true);
+      setError('');
+      
+      // Try to fetch user profile from database
+      try {
+        const profileResponse = await api.get('/api/auth/profile');
+        setProfile(profileResponse.data);
+        setFormData({
+          name: profileResponse.data.name || '',
+          bio: profileResponse.data.bio || '',
+          location: profileResponse.data.location || ''
+        });
+      } catch (profileError) {
+        // If profile endpoint doesn't exist, use user data from context
+        if (profileError.response?.status === 404) {
+          setProfile({
+            name: user?.name || 'User',
+            email: user?.email || 'No email',
+            bio: '',
+            location: '',
+            avatar: ''
+          });
+          setFormData({
+            name: user?.name || '',
+            bio: '',
+            location: ''
+          });
+        } else {
+          throw profileError;
+        }
+      }
+      
+      // Fetch user books
+      const booksResponse = await api.get('/api/books/my-books');
+      setUserBooks(booksResponse.data || []);
     } catch (error) {
-      console.error('Error fetching profile:', error);
-    }
-  };
-
-  const fetchUserBooks = async () => {
-    try {
-      const response = await axios.get('http://localhost:5001/api/books/my-books', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setUserBooks(response.data);
-    } catch (error) {
-      console.error('Error fetching user books:', error.response?.data || error.message);
+      console.error('Error fetching user data:', error);
+      if (error.response?.status === 401) {
+        setError('Authentication failed. Please login again.');
+      } else {
+        setError('Failed to load data. Please check your connection or redeploy backend with latest code.');
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -50,9 +73,8 @@ const Profile = () => {
     uploadData.append('image', file);
     
     try {
-      const response = await axios.post('http://localhost:5001/api/upload/image', uploadData, {
+      const response = await api.post('/api/upload/image', uploadData, {
         headers: { 
-          Authorization: `Bearer ${token}`,
           'Content-Type': 'multipart/form-data'
         }
       });
@@ -74,10 +96,19 @@ const Profile = () => {
         updateData.avatar = imageUrl;
       }
       
-      const response = await axios.put('http://localhost:5001/api/users/profile', updateData, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setProfile(response.data);
+      // Try to update user profile in database
+      try {
+        await api.put('/api/auth/profile', updateData);
+      } catch (updateError) {
+        if (updateError.response?.status === 404) {
+          console.warn('Profile update endpoint not available');
+        } else {
+          throw updateError;
+        }
+      }
+      
+      await fetchUserData();
+      await fetchUserData();
       setEditing(false);
     } catch (error) {
       console.error('Error updating profile:', error);
@@ -96,8 +127,23 @@ const Profile = () => {
     );
   }
 
-  if (!profile) {
+  if (loading) {
     return <div className="container">Loading...</div>;
+  }
+
+  if (error) {
+    return (
+      <div className="container">
+        <div style={{ color: 'red', textAlign: 'center' }}>
+          <p>Error: {error}</p>
+          <button onClick={fetchUserData} className="btn-primary">Retry</button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!profile) {
+    return <div className="container">No profile data found.</div>;
   }
 
   return (

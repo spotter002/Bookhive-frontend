@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import axios from 'axios';
+import api from '../utils/api';
 
 const Home = () => {
   const [books, setBooks] = useState([]);
   const [search, setSearch] = useState('');
-
+  const [authorSearch, setAuthorSearch] = useState('');
   const [filters, setFilters] = useState({ genre: '', subject: '', condition: '' });
   const [sortBy, setSortBy] = useState('');
   const [loading, setLoading] = useState(true);
@@ -16,7 +16,7 @@ const Home = () => {
 
   const fetchBooks = async () => {
     try {
-      const response = await axios.get('http://localhost:5001/api/books');
+      const response = await api.get('/api/books');
       setBooks(response.data);
     } catch (error) {
       console.error('Error fetching books:', error);
@@ -35,53 +35,51 @@ const Home = () => {
       if (filters.condition) params.append('condition', filters.condition);
       if (sortBy) params.append('sortBy', sortBy);
       
-      const response = await axios.get(`http://localhost:5001/api/books?${params}`);
+      const response = await api.get(`/api/books?${params}`);
       setBooks(response.data);
     } catch (error) {
       console.error('Error searching books:', error);
     }
   };
 
+  const handleAuthorSearch = async (e) => {
+    e.preventDefault();
+    try {
+      const params = new URLSearchParams();
+      if (authorSearch) params.append('author', authorSearch);
+      params.append('sortBy', 'genre');
+      
+      const response = await api.get(`/api/books?${params}`);
+      setBooks(response.data);
+      setSortBy('genre');
+    } catch (error) {
+      console.error('Error searching by author:', error);
+    }
+  };
 
-
-  const fetchBooksWithParams = useCallback(async () => {
+  const handleSortChange = async (e) => {
+    const newSortBy = e.target.value;
+    setSortBy(newSortBy);
+    
     try {
       const params = new URLSearchParams();
       if (search) params.append('search', search);
-
+      if (authorSearch) params.append('author', authorSearch);
       if (filters.genre) params.append('genre', filters.genre);
       if (filters.subject) params.append('subject', filters.subject);
       if (filters.condition) params.append('condition', filters.condition);
-      if (sortBy) params.append('sortBy', sortBy);
+      if (newSortBy) params.append('sortBy', newSortBy);
       
-      const response = await axios.get(`http://localhost:5001/api/books?${params}`);
+      const response = await api.get(`/api/books?${params}`);
       setBooks(response.data);
     } catch (error) {
-      console.error('Error fetching books with params:', error);
+      console.error('Error sorting books:', error);
     }
-  }, [search, filters.genre, filters.subject, filters.condition, sortBy]);
-
-  const handleSortChange = (e) => {
-    setSortBy(e.target.value);
   };
 
   const handleFilterChange = (e) => {
     setFilters({ ...filters, [e.target.name]: e.target.value });
   };
-
-  useEffect(() => {
-    if (sortBy !== '') {
-      fetchBooksWithParams();
-    }
-  }, [sortBy, fetchBooksWithParams]);
-
-  // Trigger search when filters change (only when filters have values)
-  useEffect(() => {
-    const hasActiveFilters = filters.genre || filters.subject || filters.condition;
-    if (hasActiveFilters) {
-      fetchBooksWithParams();
-    }
-  }, [filters, fetchBooksWithParams]);
 
   const categorizeBooks = (books, sortBy, hasAuthorSearch) => {
     if (!sortBy || !books.length) return { 'All Books': books };
@@ -91,7 +89,9 @@ const Home = () => {
     books.forEach(book => {
       let categoryKey;
       
-      if (sortBy.includes('price')) {
+      if (hasAuthorSearch && authorSearch) {
+        categoryKey = book.genre && book.genre.trim() !== '' ? book.genre : 'Other';
+      } else if (sortBy.includes('price')) {
         const price = book.price || 0;
         if (book.swapOnly) categoryKey = 'Swap Only';
         else if (price === 0) categoryKey = 'Free';
@@ -121,7 +121,7 @@ const Home = () => {
     return categories;
   };
 
-  const categorizedBooks = categorizeBooks(books, sortBy, false);
+  const categorizedBooks = categorizeBooks(books, sortBy, authorSearch.trim() !== '');
 
   if (loading) return <div className="container">Loading...</div>;
 
@@ -172,23 +172,29 @@ const Home = () => {
                 }}
               />
               <button type="submit" className="btn-primary">Search Books</button>
-              {search && (
-                <button 
-                  type="button" 
-                  onClick={() => { setSearch(''); fetchBooks(); }}
-                  style={{ padding: '12px', background: '#ccc', border: 'none', borderRadius: '8px' }}
-                >
-                  Clear
-                </button>
-              )}
             </div>
           </form>
           
-
+          <form onSubmit={handleAuthorSearch}>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+              <input
+                type="text"
+                placeholder="Search by author name..."
+                value={authorSearch}
+                onChange={(e) => setAuthorSearch(e.target.value)}
+                style={{ 
+                  padding: '12px', 
+                  width: '250px', 
+                  border: '2px solid var(--primary-yellow)',
+                  borderRadius: '8px'
+                }}
+              />
+              <button type="submit" className="btn-secondary">Search by Author</button>
+            </div>
+          </form>
         </div>
         
         <div style={{ marginBottom: '2rem' }}>
-          
           <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
             <select
               name="genre"
@@ -241,7 +247,7 @@ const Home = () => {
             </select>
           </div>
           
-          <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', alignItems: 'center' }}>
             <label style={{ fontWeight: 'bold' }}>Sort by:</label>
             <select
               value={sortBy}
@@ -258,19 +264,6 @@ const Home = () => {
               <option value="genre">Genre</option>
               <option value="subject">Subject</option>
             </select>
-            <button 
-              type="button" 
-              onClick={() => {
-                setFilters({ genre: '', subject: '', condition: '' });
-                setSortBy('');
-                setSearch('');
-
-                fetchBooks();
-              }}
-              style={{ padding: '8px 16px', background: '#dc3545', color: 'white', border: 'none', borderRadius: '4px' }}
-            >
-              Reset All
-            </button>
           </div>
         </div>
       </div>
