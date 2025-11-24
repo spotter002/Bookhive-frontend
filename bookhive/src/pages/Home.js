@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useCart } from '../context/CartContext';
 import api from '../utils/api';
 
 const Home = () => {
+  const { addToCart } = useCart();
   const [books, setBooks] = useState([]);
   const [search, setSearch] = useState('');
   const [authorSearch, setAuthorSearch] = useState('');
@@ -302,9 +304,27 @@ const Home = () => {
                 {book.subject && <p><strong>Subject:</strong> {book.subject}</p>}
                 <p><strong>Condition:</strong> {book.condition}</p>
                 <p><strong>Price:</strong> {book.swapOnly ? 'Swap Only' : `$${book.price}`}</p>
-                <Link to={`/book/${book._id}`} className="btn-primary" style={{ marginTop: '1rem', display: 'inline-block' }}>
-                  View Details
-                </Link>
+                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
+                  <Link to={`/book/${book._id}`} className="btn-primary" style={{ padding: '0.5rem 1rem' }}>
+                    View Details
+                  </Link>
+                  {!book.swapOnly && (
+                    <button 
+                      className="btn-secondary"
+                      onClick={async () => {
+                        const success = await addToCart(book._id);
+                        if (success) {
+                          alert('Book added to cart!');
+                        } else {
+                          alert('Failed to add book to cart');
+                        }
+                      }}
+                      style={{ padding: '0.5rem 1rem' }}
+                    >
+                      Add to Cart
+                    </button>
+                  )}
+                </div>
               </div>
             ))}
           </div>

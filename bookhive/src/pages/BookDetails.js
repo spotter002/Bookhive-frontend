@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useCart } from '../context/CartContext';
 import api from '../utils/api';
 
 const BookDetails = () => {
   const { id } = useParams();
   const { user, token } = useAuth();
+  const { addToCart } = useCart();
   const [book, setBook] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showManagement, setShowManagement] = useState(false);
@@ -201,20 +203,27 @@ const BookDetails = () => {
                     <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
                       <button 
                         className="btn-primary"
-                        onClick={() => {
-                          const subject = book.swapOnly ? `Book Swap Request: "${book.title}" by ${book.author}` : `Purchase Request: "${book.title}" by ${book.author}`;
-                          const body = book.swapOnly ? 
-                            `Hi,%0D%0A%0D%0AI would like to swap books with you. I'm interested in your book "${book.title}" by ${book.author}.%0D%0A%0D%0ACondition: ${book.condition}%0D%0A%0D%0AI have [describe your book(s) for swap] available for exchange.%0D%0A%0D%0APlease let me know if you're interested in a swap.%0D%0A%0D%0AThanks!` :
-                            `Hi,%0D%0A%0D%0AI would like to purchase your book "${book.title}" by ${book.author}.%0D%0A%0D%0APrice: $${book.price}%0D%0ACondition: ${book.condition}%0D%0A%0D%0APlease let me know if it's still available and how we can arrange the purchase.%0D%0A%0D%0AThanks!`;
-                          window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=${book.ownerId?.email}&su=${encodeURIComponent(subject)}&body=${body}`, '_blank');
+                        onClick={async () => {
+                          if (book.swapOnly) {
+                            const subject = `Book Swap Request: "${book.title}" by ${book.author}`;
+                            const body = `Hi,%0D%0A%0D%0AI would like to swap books with you. I'm interested in your book "${book.title}" by ${book.author}.%0D%0A%0D%0ACondition: ${book.condition}%0D%0A%0D%0AI have [describe your book(s) for swap] available for exchange.%0D%0A%0D%0APlease let me know if you're interested in a swap.%0D%0A%0D%0AThanks!`;
+                            window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=${book.ownerId?.email}&su=${encodeURIComponent(subject)}&body=${body}`, '_blank');
+                          } else {
+                            const success = await addToCart(book._id);
+                            if (success) {
+                              alert('Book added to cart!');
+                            } else {
+                              alert('Failed to add book to cart');
+                            }
+                          }
                         }}
                       >
-                        {book.swapOnly ? 'Request Swap' : 'Buy This Book'}
+                        {book.swapOnly ? 'Request Swap' : 'Add to Cart'}
                       </button>
                     </div>
                     <div style={{ fontSize: '0.9rem', color: '#666' }}>
                       <p style={{ margin: '0.25rem 0' }}>
-                        <strong>{book.swapOnly ? 'Request Swap:' : 'Buy This Book:'}</strong> {book.swapOnly ? 'Contact seller to arrange a book exchange' : 'Contact seller to purchase this book'}
+                        <strong>{book.swapOnly ? 'Request Swap:' : 'Add to Cart:'}</strong> {book.swapOnly ? 'Contact seller to arrange a book exchange' : 'Add this book to your cart for checkout'}
                       </p>
                     </div>
                   </div>

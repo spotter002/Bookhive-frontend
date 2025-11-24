@@ -1,10 +1,12 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useCart } from '../context/CartContext';
 import './Navbar.css';
 
 const Navbar = () => {
   const { user, logout } = useAuth();
+  const { cart } = useCart();
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -25,6 +27,9 @@ const Navbar = () => {
           {user ? (
             <>
               <Link to="/add-book" className="navbar-link">Add Book</Link>
+              <Link to="/cart" className="navbar-link">
+                Cart ({cart.items.length})
+              </Link>
               <Link to="/profile" className="navbar-link">Profile</Link>
               <button onClick={handleLogout} className="btn-secondary">Logout</button>
             </>
