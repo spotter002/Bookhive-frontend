@@ -22,7 +22,7 @@ const Cart = () => {
       const response = await api.post('/api/mpesa/pay', { phone });
       
       if (response.data.success) {
-        setPaymentStatus('📱 Payment initiated! Check your phone for M-Pesa prompt.');
+        setPaymentStatus('📱 An MPESA Prompt has been sent to Your Phone, Please Check & Complete Payment');
         
         // Poll for payment status
         const orderId = response.data.orderId;
