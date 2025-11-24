@@ -34,6 +34,10 @@ export const CartProvider = ({ children }) => {
       setCart(response.data);
       return true;
     } catch (error) {
+      if (error.response?.status === 400) {
+        alert(error.response.data.message);
+        return false;
+      }
       if (error.response?.status === 404) {
         // Fallback: store in localStorage if backend not available
         const localCart = JSON.parse(localStorage.getItem('cart') || '{"items":[], "totalAmount":0}');

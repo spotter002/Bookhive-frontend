@@ -316,12 +316,17 @@ const Home = () => {
                         if (success) {
                           alert('Book added to cart!');
                         } else {
-                          alert('Failed to add book to cart');
+                          alert('Cannot add to cart. Check available copies.');
                         }
                       }}
-                      style={{ padding: '0.5rem 1rem' }}
+                      disabled={book.copiesAvailable === 0}
+                      style={{ 
+                        padding: '0.5rem 1rem',
+                        opacity: book.copiesAvailable === 0 ? 0.5 : 1,
+                        cursor: book.copiesAvailable === 0 ? 'not-allowed' : 'pointer'
+                      }}
                     >
-                      Add to Cart
+                      {book.copiesAvailable === 0 ? 'Out of Stock' : 'Add to Cart'}
                     </button>
                   )}
                 </div>

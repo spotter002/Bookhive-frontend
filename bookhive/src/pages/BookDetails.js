@@ -213,7 +213,7 @@ const BookDetails = () => {
                             if (success) {
                               alert('Book added to cart!');
                             } else {
-                              alert('Failed to add book to cart');
+                              alert('Failed to add book to cart. Check available copies.');
                             }
                           }
                         }}

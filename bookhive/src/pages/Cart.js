@@ -22,7 +22,8 @@ const Cart = () => {
       const response = await api.post('/api/mpesa/pay', { phone });
       
       if (response.data.success) {
-        setPaymentStatus('📱 An MPESA Prompt has been sent to Your Phone, Please Check & Complete Payment');
+        const { kshAmount, usdAmount } = response.data;
+      setPaymentStatus(`📱 An MPESA Prompt has been sent to Your Phone for KSH ${kshAmount} ($${usdAmount}). Please Check & Complete Payment`);
         
         // Poll for payment status
         const orderId = response.data.orderId;
@@ -65,8 +66,12 @@ const Cart = () => {
     );
   }
 
-  const updateQuantity = (bookId, newQuantity) => {
+  const updateQuantity = (bookId, newQuantity, maxCopies) => {
     if (newQuantity < 1) return;
+    if (newQuantity > maxCopies) {
+      alert(`Cannot exceed ${maxCopies} copies available`);
+      return;
+    }
     setQuantities({ ...quantities, [bookId]: newQuantity });
   };
 
@@ -80,6 +85,11 @@ const Cart = () => {
       const price = item.bookId?.price || 0;
       return total + (price * quantity);
     }, 0).toFixed(2);
+  };
+
+  const calculateTotalKSH = () => {
+    const usdTotal = parseFloat(calculateTotal());
+    return Math.round(usdTotal * 130); // 1 USD = 130 KSH
   };
 
   return (
@@ -129,12 +139,13 @@ const Cart = () => {
                     <p style={{ margin: '0.25rem 0', color: '#666' }}>by {item.bookId.author}</p>
                     <p style={{ margin: '0.25rem 0', fontWeight: 'bold', color: 'var(--primary-yellow)' }}>${item.bookId.price}</p>
                     <p style={{ margin: '0.25rem 0', fontSize: '0.9rem', color: '#888' }}>Condition: {item.bookId.condition}</p>
+                    <p style={{ margin: '0.25rem 0', fontSize: '0.8rem', color: '#666' }}>Available: {item.bookId.copiesAvailable} copies</p>
                   </div>
                   
                   <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                       <button 
-                        onClick={() => updateQuantity(item.bookId._id, quantity - 1)}
+                        onClick={() => updateQuantity(item.bookId._id, quantity - 1, item.bookId.copiesAvailable)}
                         style={{ 
                           width: '30px', 
                           height: '30px', 
@@ -157,14 +168,16 @@ const Cart = () => {
                         {quantity}
                       </span>
                       <button 
-                        onClick={() => updateQuantity(item.bookId._id, quantity + 1)}
+                        onClick={() => updateQuantity(item.bookId._id, quantity + 1, item.bookId.copiesAvailable)}
+                        disabled={quantity >= item.bookId.copiesAvailable}
                         style={{ 
                           width: '30px', 
                           height: '30px', 
                           border: '1px solid #ddd', 
-                          background: 'white',
+                          background: quantity >= item.bookId.copiesAvailable ? '#f5f5f5' : 'white',
                           borderRadius: '4px',
-                          cursor: 'pointer'
+                          cursor: quantity >= item.bookId.copiesAvailable ? 'not-allowed' : 'pointer',
+                          opacity: quantity >= item.bookId.copiesAvailable ? 0.5 : 1
                         }}
                       >
                         +
@@ -201,9 +214,18 @@ const Cart = () => {
             backgroundColor: '#f8f9fa',
             border: '2px solid var(--primary-yellow)'
           }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>Total Amount:</span>
-              <span style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'var(--jet-black)' }}>${calculateTotal()}</span>
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                <span style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>Total Amount (USD):</span>
+                <span style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'var(--jet-black)' }}>${calculateTotal()}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '1rem', color: '#666' }}>Total Amount (KSH):</span>
+                <span style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--primary-yellow)' }}>KSH {calculateTotalKSH()}</span>
+              </div>
+              <div style={{ fontSize: '0.8rem', color: '#888', textAlign: 'center', marginTop: '0.5rem' }}>
+                Exchange Rate: 1 USD = 130 KSH
+              </div>
             </div>
           </div>
 
@@ -237,7 +259,7 @@ const Cart = () => {
                   fontWeight: 'bold'
                 }}
               >
-                {loading ? '⏳ Processing...' : `💰 Pay $${calculateTotal()} via M-Pesa`}
+                {loading ? '⏳ Processing...' : `💰 Pay KSH ${calculateTotalKSH()} ($${calculateTotal()}) via M-Pesa`}
               </button>
             </form>
             
